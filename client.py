@@ -10,8 +10,8 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 stop_thread = False
 print('Waiting for connection response')
 
-def receive_and_print():
-    global stop_thread
+def message_handler():
+    global stop_thread, s
     try:
         for message in iter(lambda: s.recv(1024).decode(), ''):
             if message == " ":
@@ -26,30 +26,44 @@ def receive_and_print():
         stop_thread = True
         return
 
-
-s.connect((HOST, PORT))
-name = input('Enter your name: ')
-s.sendall(str.encode(name))
-res = s.recv(1024)
-print(res.decode('utf-8'))
-    
-
-message_thread = Thread(target=receive_and_print)
-message_thread.start()
-
-while True:
+def client_start():
+    global s, stop_thread
     try:
-        message = input()
-        curret_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        message = f"{curret_time}\n{message}"
-        s.sendall(str.encode(message))
-    except KeyboardInterrupt:
-        stop_thread = True
-        break
+        s.connect((HOST, PORT))
+        name = input('Enter your name: ')
+        s.sendall(str.encode(name))
+
+        receive_thread = Thread(target=message_handler)
+        receive_thread.start()
+        
+        while True:
+            if stop_thread:
+                break
+            try:
+                print
+                message = input("Message:")
+                curret_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                message = f"{curret_time}\n{message}"
+                s.sendall(str.encode(message))
+            except KeyboardInterrupt:
+                stop_thread = True
+                break
+            except Exception as e:
+                stop_thread = True
+                break
     except Exception as e:
-        stop_thread = True
-        break
+        return False
+
+def exit():
+    global s
+    s.close()
+    sys.exit()
 
 
-s.close()
-sys.exit()
+    
+if __name__ == "__main__":
+    client_thread = Thread(target=client_start)
+    client_thread.start()
+
+    if stop_thread:
+        exit()
